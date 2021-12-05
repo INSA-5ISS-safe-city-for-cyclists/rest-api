@@ -8,7 +8,6 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       res.status(200).json(criteria);
       break;
     default:
-      res.setHeader('Allow', ['POST']);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 };
