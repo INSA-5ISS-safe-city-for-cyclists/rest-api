@@ -4,9 +4,16 @@ import { PostDangerReports, POSTData } from '../../types/api';
 import criteria from '../../constants/criteria';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const mysql = require('serverless-mysql')({
+export const mysql = require('serverless-mysql')({
   config: db,
 });
+
+export function isDeleteDataValid(data: unknown): data is Array<number> {
+  return (
+    Array.isArray(data) &&
+    (data as Array<number>).every((i) => typeof i === 'number')
+  );
+}
 
 function isPostDataValid(data: unknown): data is POSTData {
   const typedData = data as POSTData;
@@ -23,13 +30,6 @@ function isPostDataValid(data: unknown): data is POSTData {
 function isPostDataArrayValid(data: unknown): data is PostDangerReports {
   return (
     Array.isArray(data) && (data as PostDangerReports).every(isPostDataValid)
-  );
-}
-
-function isDeleteDataValid(data: unknown): data is Array<number> {
-  return (
-    Array.isArray(data) &&
-    (data as Array<number>).every((i) => typeof i === 'number')
   );
 }
 

@@ -67,11 +67,96 @@ NB: configure the correct port in [constants/db.ts](constants/db.ts)
 Configure the criteria in [constants/criteria.ts](constants/criteria.ts)
 
 ## API
-- [http://localhost:3000/api/reports](http://localhost:3000/api/reports)
-  - GET : retrieve all the reports (can add path parameter "dangerous" )
+- [http://localhost:3000/api/reports/geojson](http://localhost:3000/api/reports/geojson)
+  - GET : retrieve all the reports in GeoJson format (can add path parameter "dangerous" )
   - DELETE : delete the given reports (an array of ids)
+  - POST : add the given reports to the database (given in GeoJson format)
 
-- [http://localhost:3000/api/reports/update-all](http://localhost:3000/api/update-all)
+GeoJson format : 
+```json5
+{
+    features: [
+      {
+        geometry: { coordinates: [1.453, 43.602, 0.0], type: 'Point' },
+        properties: {
+          id: 1,
+          bicycle_speed: 4.0,
+          object_speed: 3.0,
+          distance: 2.0,
+          sync: false,
+          timestamp: 1638733392089,
+        },
+        type: 'Feature',
+      },
+      {
+        geometry: {
+          coordinates: [1.463, 43.611999999999995, 0.0],
+          type: 'Point',
+        },
+        properties: {
+          id: 2,
+          bicycle_speed: 5.0,
+          object_speed: 4.0,
+          distance: 3.0,
+          sync: false,
+          timestamp: 1638796649644,
+        },
+        type: 'Feature',
+      },
+      {
+        geometry: { coordinates: [1.473, 43.622, 0.0], type: 'Point' },
+        properties: {
+          id: 3,
+          bicycle_speed: 6.0,
+          object_speed: 5.0,
+          distance: 4.0,
+          sync: false,
+          timestamp: 1638796666485,
+        },
+        type: 'Feature',
+      },
+    ],
+    type: 'FeatureCollection',
+  }
+```
+
+- [http://localhost:3000/api/reports](http://localhost:3000/api/reports)
+  - Same as /reports/geojson but the format for GET and POST is different:
+
+JSON format :
+```json5
+[{
+    "timestamp": 1635497504,
+    "distance": 300.0,
+    "object_speed": 60.0,
+    "bicycle_speed": 7.0,
+    "latitude": 43.57037533253987,
+    "longitude": 1.468026024931181
+},{
+    "timestamp": 1635497700,
+    "distance": 80.0,
+    "object_speed": 30.0,
+    "bicycle_speed": 5.0,
+    "latitude": 43.573154109080825,
+    "longitude": 1.4781496777222487
+},{
+    "timestamp": 1635408700,
+    "distance": 300.0,
+    "object_speed": 10.0,
+    "bicycle_speed": 4.0,
+    "latitude": 43.553550, 
+    "longitude": 1.466915
+},{
+    "timestamp": 1635448700,
+    "distance": 350.0,
+    "object_speed": 20.0,
+    "bicycle_speed": 7.0,
+    "latitude": 43.560097, 
+    "longitude": 1.457377
+}]
+```
+
+- [http://localhost:3000/api/reports/update-all](http://localhost:3000/api/reports/update-all)
   - GET : update all the database according to the current criteria
 
 
