@@ -1,11 +1,6 @@
-import db from '../../../constants/db';
 import { NextApiRequest, NextApiResponse } from 'next';
 import criteria from '../../../constants/criteria';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const mysql = require('serverless-mysql')({
-  config: db,
-});
+import mysql from '../../../util/mysql';
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
@@ -25,6 +20,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       res.status(200).end('success');
       break;
     default:
+      res.setHeader('Allow', ['GET']);
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 };
