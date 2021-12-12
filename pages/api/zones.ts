@@ -1,6 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import gjv from 'geojson-validation';
+import { DatabaseData } from '../../types/api';
+
+//TODO calibrate
+const radius = 0.015; // ~=1.6698 km
+
+function getDistance(report1: DatabaseData, report2: DatabaseData): number {
+  return Math.sqrt(
+    Math.pow(report2.latitude - report1.latitude, 2) +
+      Math.pow(report2.longitude - report1.longitude, 2)
+  );
+}
 
 function isGetResponseDataValid(geoJson: object) {
   return gjv.valid(geoJson);
@@ -8,23 +19,59 @@ function isGetResponseDataValid(geoJson: object) {
 
 function generateGeoJson(result: string) {
   const features = [];
-  JSON.parse(JSON.stringify(result)).forEach((v) => {
+  // JSON.parse(JSON.stringify(result)).forEach((v) => {
+  //   features.push({
+  //     geometry: {
+  //       coordinates: [v.longitude, v.latitude, 0.0],
+  //       type: 'Point',
+  //     },
+  //     properties: {
+  //       id: v.id,
+  //       bicycle_speed: v.bicycle_speed,
+  //       object_speed: v.object_speed,
+  //       distance: v.distance,
+  //       dangerous: v.dangerous,
+  //       timestamp: v.timestamp * 1000,
+  //     },
+  //     type: 'Feature',
+  //   });
+  // });
+  const reportList: Array<DatabaseData> = JSON.parse(JSON.stringify(result));
+  while (reportList.length > 0) {
+    // Center report is the first element
+    const centerReport = reportList[0];
+    console.log('Center report : ');
+    console.log(centerReport);
+
+    // Remove center report from the list
+    reportList.splice(0, 1);
+
+    // Get the nearby reports that are within the given radius
+    const nearbyReports = reportList.filter(
+      (report) => getDistance(report, centerReport) < radius
+    );
+
+    // Total number of reports in this zone
+    const numberOfReports = 1 + nearbyReports.length;
+
+    // Add the zone to the feature collection
     features.push({
       geometry: {
-        coordinates: [v.longitude, v.latitude, 0.0],
+        coordinates: [centerReport.longitude, centerReport.latitude, 0.0],
         type: 'Point',
       },
       properties: {
-        id: v.id,
-        bicycle_speed: v.bicycle_speed,
-        object_speed: v.object_speed,
-        distance: v.distance,
-        dangerous: v.dangerous,
-        timestamp: v.timestamp * 1000,
+        mag: numberOfReports,
       },
       type: 'Feature',
     });
-  });
+
+    // Remove the reports that were found within the given radius
+    nearbyReports.forEach((value) => {
+      const index = reportList.indexOf(value);
+      reportList.splice(index, 1);
+    });
+  }
   return {
     type: 'FeatureCollection',
     features: features,

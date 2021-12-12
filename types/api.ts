@@ -9,3 +9,14 @@ export type POSTData = {
   latitude: number;
   longitude: number;
 };
+
+// Timestamp here refers to the complete timestamp
+export type DatabaseData = {
+  id: number;
+  timestamp: number;
+  distance: number;
+  object_speed: number;
+  bicycle_speed: number;
+  latitude: number;
+  longitude: number;
+};

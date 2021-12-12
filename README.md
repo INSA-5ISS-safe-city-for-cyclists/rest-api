@@ -78,7 +78,7 @@ INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance', 100.0);
 NB: configure the correct port in [constants/db.ts](constants/db.ts)
 
 ## Criteria configuration
-Configure the criteria in [constants/criteria.ts](constants/criteria.ts)
+Configure the criteria in [constants/criteria.ts](types/criteria.ts)
 
 ## API
 - [http://localhost:3000/api/reports/geojson](http://localhost:3000/api/reports/geojson)

@@ -1,8 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import criteria, {
-  Criteria,
-  DatabaseCriterion,
-} from '../../constants/criteria';
+import criteria, { Criteria, DatabaseCriterion } from '../../types/criteria';
 import mysql from '../../util/mysql';
 
 function isPostDataValid(data: unknown): data is Criteria {

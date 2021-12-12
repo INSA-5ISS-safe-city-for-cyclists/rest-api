@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import criteria from '../../../constants/criteria';
+import criteria from '../../../types/criteria';
 import mysql from '../../../util/mysql';
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
