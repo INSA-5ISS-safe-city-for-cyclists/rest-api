@@ -93,8 +93,8 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
                 latitude,
                 longitude,
                 properties.object_speed - properties.bicycle_speed >=
-                  criteria.minSpeed ||
-                  properties.distance <= criteria.maxDistance,
+                  criteria.min_speed ||
+                  properties.distance <= criteria.max_distance,
               ]
             );
           });

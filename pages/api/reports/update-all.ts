@@ -15,12 +15,12 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       // Dangerous reports
       await mysql.query(
         'UPDATE reports SET dangerous = true WHERE (object_speed-bicycle_speed >= ? OR distance <= ?)',
-        [criteria.minSpeed, criteria.maxDistance]
+        [criteria.min_speed, criteria.max_distance]
       );
       // Not dangerous reports
       await mysql.query(
         'UPDATE reports SET dangerous = false WHERE (object_speed-bicycle_speed < ? AND distance > ?)',
-        [criteria.minSpeed, criteria.maxDistance]
+        [criteria.min_speed, criteria.max_distance]
       );
       res.status(200).end('success');
       break;
