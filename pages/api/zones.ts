@@ -46,7 +46,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 // TODO convert into zones
 async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
-  let result = '';
+  let result: string;
   if (
     query.dangerous &&
     ['true', 'false', '1', '0'].includes(<string>query.dangerous)

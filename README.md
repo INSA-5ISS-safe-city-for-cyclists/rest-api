@@ -46,7 +46,7 @@ CREATE USER 'admin'@'localhost' IDENTIFIED BY 'admin123';
 GRANT ALL PRIVILEGES ON safe_city_for_cyclists.* TO 'admin'@'localhost';
 ```
 
-- Create the table :
+- Create the table for reports:
 ```sql
 CREATE table safe_city_for_cyclists.reports(
 id int NOT NULL AUTO_INCREMENT,
@@ -59,6 +59,20 @@ longitude float NOT NULL,
 dangerous bool NOT NULL,
 PRIMARY KEY (id)
 );
+```
+- Create the table for criteria:
+```sql
+CREATE table safe_city_for_cyclists.criteria(
+name VARCHAR(12) NOT NULL,
+value float NOT NULL,
+PRIMARY KEY (name)
+);
+```
+
+- Create entry for criteria:
+```sql
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed', 30.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance', 100.0);
 ```
 
 NB: configure the correct port in [constants/db.ts](constants/db.ts)
