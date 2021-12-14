@@ -94,17 +94,30 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
   let result: string;
+  // Generate the timestamp of the date 3 months ago
+  const threeMonthsAgoDate = new Date();
+  threeMonthsAgoDate.setMonth(threeMonthsAgoDate.getMonth() - 3);
+  const threeMonthsAgoTimestamp = Math.round(
+    threeMonthsAgoDate.getTime() / 1000
+  );
+  // Dangerous criterion
   if (
     query.dangerous &&
     ['true', 'false', '1', '0'].includes(<string>query.dangerous)
   ) {
     const dangerous = ['true', '1'].includes(<string>query.dangerous);
     result = await mysql.query(
-      'SELECT * FROM reports WHERE dangerous = ?',
-      dangerous // true or false
+      'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ?',
+      [
+        dangerous, // true or false
+        threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+      ]
     );
   } else {
-    result = await mysql.query('SELECT * FROM reports');
+    result = await mysql.query(
+      'SELECT * FROM reports WHERE timestamp > ?',
+      threeMonthsAgoTimestamp // Use only the reports less than 3 months old
+    );
   }
   const geoJson = generateGeoJson(result);
   if (isGetResponseDataValid(geoJson)) {
