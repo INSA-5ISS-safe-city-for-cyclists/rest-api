@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import criteria, { Criteria, DatabaseCriterion } from '../../types/criteria';
 import mysql from '../../util/mysql';
+import key from '../../constants/key';
 
 function isPostDataValid(data: unknown): data is Criteria {
   const typedData = data as Criteria;
@@ -43,31 +44,35 @@ async function handleGET(_req: NextApiRequest, res: NextApiResponse) {
 
 // TODO retrieve new config
 async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
-  const { body } = req;
-  if (isPostDataValid(body)) {
-    criteria.min_speed = body.min_speed;
-    criteria.max_distance = body.max_distance;
-    await mysql.query(
-      "UPDATE criteria SET value = ? WHERE name = 'min_speed'",
-      criteria.min_speed
-    );
-    await mysql.query(
-      "UPDATE criteria SET value = ? WHERE name = 'max_distance'",
-      criteria.max_distance
-    );
-    // Update the database according to the current criteria
-    // Dangerous reports
-    await mysql.query(
-      'UPDATE reports SET dangerous = true WHERE (object_speed-bicycle_speed >= ? OR distance <= ?)',
-      [criteria.min_speed, criteria.max_distance]
-    );
-    // Not dangerous reports
-    await mysql.query(
-      'UPDATE reports SET dangerous = false WHERE (object_speed-bicycle_speed < ? AND distance > ?)',
-      [criteria.min_speed, criteria.max_distance]
-    );
-    res.status(200).end('success');
+  const { body, headers } = req;
+  if (headers.authorization === key) {
+    if (isPostDataValid(body)) {
+      criteria.min_speed = body.min_speed;
+      criteria.max_distance = body.max_distance;
+      await mysql.query(
+        "UPDATE criteria SET value = ? WHERE name = 'min_speed'",
+        criteria.min_speed
+      );
+      await mysql.query(
+        "UPDATE criteria SET value = ? WHERE name = 'max_distance'",
+        criteria.max_distance
+      );
+      // Update the database according to the current criteria
+      // Dangerous reports
+      await mysql.query(
+        'UPDATE reports SET dangerous = true WHERE (object_speed-bicycle_speed >= ? OR distance <= ?)',
+        [criteria.min_speed, criteria.max_distance]
+      );
+      // Not dangerous reports
+      await mysql.query(
+        'UPDATE reports SET dangerous = false WHERE (object_speed-bicycle_speed < ? AND distance > ?)',
+        [criteria.min_speed, criteria.max_distance]
+      );
+      res.status(200).end('success');
+    } else {
+      res.status(400).end('Data provided invalid');
+    }
   } else {
-    res.status(400).end('Data provided invalid');
+    res.status(400).end('Given API Key is invalid, verify Authorization');
   }
 }
