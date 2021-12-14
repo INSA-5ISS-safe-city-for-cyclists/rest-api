@@ -2,8 +2,8 @@
 
 [X] Generate zones using stored reports  
 [x] Use only reports less than 3 months old  
-[] Generate zones according to current time (+/- 1h) and day  
-[] Make a zone danger level scale with number of reports  
+[x] Generate zones according to current time (+/- 1h) and day  
+[x] Make a zone danger level scale with number of reports  
 [] Include average date of reports and number in zone properties  
 
 ## Communication

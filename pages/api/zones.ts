@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import gjv from 'geojson-validation';
 import { DatabaseData } from '../../types/api';
+import monthsOld from '../../constants/monthsOld';
+import reportTimeHourRange from '../../constants/reportTimeHourRange';
 
 //TODO calibrate
 const radius = 0.015; // ~=1.6698 km
@@ -78,6 +80,71 @@ function generateGeoJson(result: string) {
   };
 }
 
+interface MinMaxTimestampData {
+  min: number;
+  max: number;
+  operator: 'AND' | 'OR';
+}
+
+// % operator can return negative values => we want the real modulo : positive
+function positiveMod(i1: number, i2: number): number {
+  const rem = i1 % i2;
+  return rem >= 0 ? rem : i2 + rem;
+}
+
+const secondsInOneDay = 86400;
+
+function getMinMaxTimestampData(): MinMaxTimestampData {
+  const now = new Date();
+
+  // Testing
+  // TODO Remove this line used to test
+  now.setHours(9);
+
+  // Current time of day (in seconds)
+  const timeOfDay = Math.round(now.getTime() / 1000) % secondsInOneDay;
+
+  const result: MinMaxTimestampData = {
+    min: 0,
+    max: 0,
+    operator: 'AND',
+  };
+
+  const secondsInOneHour = 3600;
+  // Example with reportTimeHourRange == 1
+  // TimeOfDay < 1am
+  if (timeOfDay - secondsInOneHour * reportTimeHourRange < 0) {
+    result.max = timeOfDay + secondsInOneHour * reportTimeHourRange;
+    result.min = positiveMod(
+      timeOfDay - secondsInOneHour * reportTimeHourRange,
+      secondsInOneDay
+    );
+    result.operator = 'OR';
+  }
+  // TimeOfDay > 11pm
+  else if (
+    timeOfDay + secondsInOneHour * reportTimeHourRange >
+    secondsInOneDay
+  ) {
+    result.min = timeOfDay - secondsInOneHour * reportTimeHourRange;
+    result.max = positiveMod(
+      timeOfDay + secondsInOneHour * reportTimeHourRange,
+      secondsInOneDay
+    );
+    result.operator = 'OR';
+  }
+  // 1am < TimeOfDay < 11pm
+  else {
+    result.min = timeOfDay - secondsInOneHour * reportTimeHourRange;
+    result.max = timeOfDay + secondsInOneHour * reportTimeHourRange;
+    result.operator = 'AND';
+  }
+
+  // console.log(result);
+
+  return result;
+}
+
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   const { method } = req;
   switch (method) {
@@ -94,9 +161,14 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
 async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
   let result: string;
-  // Generate the timestamp of the date 3 months ago
+
+  // Get the min and max timestamp to get the reports according to current time of day (+/- 1h by default)
+  // And also the operator : when the time interval goes past midnight we have to change AND to OR
+  const minMaxTimestamp = getMinMaxTimestampData();
+
+  // Generate the timestamp of the date 3 months ago (by default)
   const threeMonthsAgoDate = new Date();
-  threeMonthsAgoDate.setMonth(threeMonthsAgoDate.getMonth() - 3);
+  threeMonthsAgoDate.setMonth(threeMonthsAgoDate.getMonth() - monthsOld);
   const threeMonthsAgoTimestamp = Math.round(
     threeMonthsAgoDate.getTime() / 1000
   );
@@ -106,18 +178,61 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
     ['true', 'false', '1', '0'].includes(<string>query.dangerous)
   ) {
     const dangerous = ['true', '1'].includes(<string>query.dangerous);
-    result = await mysql.query(
-      'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ?',
-      [
-        dangerous, // true or false
-        threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
-      ]
-    );
+    switch (minMaxTimestamp.operator) {
+      case 'AND':
+        result = await mysql.query(
+          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
+          [
+            dangerous, // true or false
+            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            minMaxTimestamp.min,
+            secondsInOneDay,
+            secondsInOneDay,
+            minMaxTimestamp.max,
+          ]
+        );
+        break;
+      case 'OR':
+        result = await mysql.query(
+          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
+          [
+            dangerous, // true or false
+            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            minMaxTimestamp.min,
+            secondsInOneDay,
+            secondsInOneDay,
+            minMaxTimestamp.max,
+          ]
+        );
+        break;
+    }
   } else {
-    result = await mysql.query(
-      'SELECT * FROM reports WHERE timestamp > ?',
-      threeMonthsAgoTimestamp // Use only the reports less than 3 months old
-    );
+    switch (minMaxTimestamp.operator) {
+      case 'AND':
+        result = await mysql.query(
+          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
+          [
+            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            minMaxTimestamp.min,
+            secondsInOneDay,
+            secondsInOneDay,
+            minMaxTimestamp.max,
+          ]
+        );
+        break;
+      case 'OR':
+        result = await mysql.query(
+          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
+          [
+            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            minMaxTimestamp.min,
+            secondsInOneDay,
+            secondsInOneDay,
+            minMaxTimestamp.max,
+          ]
+        );
+        break;
+    }
   }
   const geoJson = generateGeoJson(result);
   if (isGetResponseDataValid(geoJson)) {
