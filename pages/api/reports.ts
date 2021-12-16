@@ -23,8 +23,21 @@ const gjv = require('geojson-validation');
 //   );
 // }
 
-function isPostDataValid(data: string) {
-  return gjv.valid(JSON.parse(JSON.stringify(data)), true);
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function isPostDataValid(data: any) {
+  let ok = true;
+  ok = ok && gjv.valid(data);
+  const features = data?.features;
+  for (const feature of features) {
+    const properties = feature.properties;
+    ok =
+      ok &&
+      properties?.timestamp != undefined &&
+      properties?.distance != undefined &&
+      properties?.object_speed != undefined &&
+      properties?.bicycle_speed != undefined;
+  }
+  return ok;
 }
 
 function isDeleteDataValid(data: unknown): data is Array<number> {
@@ -70,9 +83,8 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
     //       ]
     //     );
     //   });
-    const data = JSON.stringify(body);
-    if (isPostDataValid(data)) {
-      const features = JSON.parse(data).features;
+    if (isPostDataValid(body)) {
+      const features = body.features;
       for (const feature of features) {
         const properties = feature.properties;
         const latitude = feature.geometry.coordinates[1];
