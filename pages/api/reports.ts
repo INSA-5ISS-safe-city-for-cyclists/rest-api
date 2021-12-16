@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import criteria from '../../types/criteria';
+import { object } from 'prop-types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const gjv = require('geojson-validation');
@@ -24,7 +25,7 @@ const gjv = require('geojson-validation');
 // }
 
 function isPostDataValid(data: string) {
-  return gjv.valid(JSON.parse(data));
+  return gjv.valid(JSON.parse(JSON.stringify(data)), true);
 }
 
 function isDeleteDataValid(data: unknown): data is Array<number> {
@@ -70,8 +71,9 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
     //       ]
     //     );
     //   });
-    if (isPostDataValid(body)) {
-      const features = JSON.parse(body).features;
+    const data = JSON.stringify(body);
+    if (isPostDataValid(data)) {
+      const features = JSON.parse(data).features;
       for (const feature of features) {
         const properties = feature.properties;
         const latitude = feature.geometry.coordinates[1];
