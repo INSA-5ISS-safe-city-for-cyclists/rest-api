@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import criteria from '../../types/criteria';
-import { object } from 'prop-types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const gjv = require('geojson-validation');
