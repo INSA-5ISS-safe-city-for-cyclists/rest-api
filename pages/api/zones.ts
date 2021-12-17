@@ -1,83 +1,102 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import gjv from 'geojson-validation';
-import { DatabaseData } from '../../types/api';
 import monthsOld from '../../constants/monthsOld';
 import reportTimeHourRange from '../../constants/reportTimeHourRange';
+import * as dbscan from '@turf/clusters-dbscan';
+import * as turf from '@turf/helpers';
+import * as centroid from '@turf/centroid';
+import { FeatureCollection, Point } from '@turf/helpers';
 
 //TODO calibrate
-const radius = 0.015; // ~=1.6698 km
+const dbscanMaxDistance = 0.04;
+const dbscanMinPoints = 2;
 
-function getDistance(report1: DatabaseData, report2: DatabaseData): number {
-  return Math.sqrt(
-    Math.pow(report2.latitude - report1.latitude, 2) +
-      Math.pow(report2.longitude - report1.longitude, 2)
-  );
-}
+// Generate the timestamp of the date 3 months ago (by default)
+const nMonthsAgoDate = new Date();
+nMonthsAgoDate.setMonth(nMonthsAgoDate.getMonth() - monthsOld);
+const nMonthsAgoTimestamp = Math.round(nMonthsAgoDate.getTime() / 1000);
 
 function isGetResponseDataValid(geoJson: object) {
   return gjv.valid(geoJson);
 }
 
-function generateGeoJson(result: string) {
+function databaseToGeojson(result: string) {
   const features = [];
-  // JSON.parse(JSON.stringify(result)).forEach((v) => {
-  //   features.push({
-  //     geometry: {
-  //       coordinates: [v.longitude, v.latitude, 0.0],
-  //       type: 'Point',
-  //     },
-  //     properties: {
-  //       id: v.id,
-  //       bicycle_speed: v.bicycle_speed,
-  //       object_speed: v.object_speed,
-  //       distance: v.distance,
-  //       dangerous: v.dangerous,
-  //       timestamp: v.timestamp * 1000,
-  //     },
-  //     type: 'Feature',
-  //   });
-  // });
-  const reportList: Array<DatabaseData> = JSON.parse(JSON.stringify(result));
-  while (reportList.length > 0) {
-    // Center report is the first element
-    const centerReport = reportList[0];
-    console.log('Center report : ');
-    console.log(centerReport);
-
-    // Remove center report from the list
-    reportList.splice(0, 1);
-
-    // Get the nearby reports that are within the given radius
-    const nearbyReports = reportList.filter(
-      (report) => getDistance(report, centerReport) < radius
-    );
-
-    // Total number of reports in this zone
-    const numberOfReports = 1 + nearbyReports.length;
-
-    // Add the zone to the feature collection
+  JSON.parse(JSON.stringify(result)).forEach((v) => {
     features.push({
       geometry: {
-        coordinates: [centerReport.longitude, centerReport.latitude, 0.0],
+        coordinates: [v.longitude, v.latitude, 0.0],
         type: 'Point',
       },
       properties: {
-        mag: numberOfReports,
+        id: v.id,
+        bicycle_speed: v.bicycle_speed,
+        object_speed: v.object_speed,
+        distance: v.distance,
+        dangerous: v.dangerous,
+        timestamp: v.timestamp,
       },
       type: 'Feature',
     });
-
-    // Remove the reports that were found within the given radius
-    nearbyReports.forEach((value) => {
-      const index = reportList.indexOf(value);
-      reportList.splice(index, 1);
-    });
-  }
+  });
   return {
     type: 'FeatureCollection',
     features: features,
   };
+}
+
+function turfCluster(result: string) {
+  // Clusterise using DBSCAN
+  const clustered = dbscan.default(
+    databaseToGeojson(result) as FeatureCollection<Point>,
+    dbscanMaxDistance,
+    {
+      minPoints: dbscanMinPoints,
+    }
+  );
+  const clusters = new Map<number, FeatureCollection<Point>>();
+  console.log(clustered.features);
+  // Retrieve the clusters
+  for (const feature of clustered.features) {
+    // Ignore noise
+    if (feature.properties.dbscan === 'core') {
+      if (!clusters.has(feature.properties.cluster)) {
+        clusters.set(feature.properties.cluster, turf.featureCollection([]));
+      }
+      clusters.get(feature.properties.cluster).features.push(feature);
+    }
+  }
+
+  // Transform clusters into zones
+  const zones = turf.featureCollection([]);
+  clusters.forEach((featureCollection) => {
+    const myCentroid = centroid.default(featureCollection);
+
+    // Magnitude = number of reports
+    myCentroid.properties.mag = featureCollection.features.length;
+
+    let recentness = 0;
+    featureCollection.features.forEach((feature) => {
+      recentness += feature.properties.timestamp;
+    });
+    // Average timestamp of the reports in the cluster
+    recentness = recentness / featureCollection.features.length;
+
+    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
+    const nowTimestamp = Math.round(new Date().getTime() / 1000);
+    recentness =
+      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
+    myCentroid.properties.recentness = recentness;
+
+    zones.features.push(myCentroid);
+  });
+  return zones;
+}
+
+function generateGeoJson(result: string) {
+  // return simpleCluster(result);
+  return turfCluster(result);
 }
 
 interface MinMaxTimestampData {
@@ -165,12 +184,6 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   // And also the operator : when the time interval goes past midnight we have to change AND to OR
   const minMaxTimestamp = getMinMaxTimestampData();
 
-  // Generate the timestamp of the date 3 months ago (by default)
-  const threeMonthsAgoDate = new Date();
-  threeMonthsAgoDate.setMonth(threeMonthsAgoDate.getMonth() - monthsOld);
-  const threeMonthsAgoTimestamp = Math.round(
-    threeMonthsAgoDate.getTime() / 1000
-  );
   // Dangerous criterion
   if (
     query.dangerous &&
@@ -183,7 +196,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
           'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
           [
             dangerous, // true or false
-            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
             secondsInOneDay,
             secondsInOneDay,
@@ -196,7 +209,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
           'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
           [
             dangerous, // true or false
-            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
             secondsInOneDay,
             secondsInOneDay,
@@ -211,7 +224,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
         result = await mysql.query(
           'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
           [
-            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
             secondsInOneDay,
             secondsInOneDay,
@@ -223,7 +236,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
         result = await mysql.query(
           'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
           [
-            threeMonthsAgoTimestamp, // Use only the reports less than 3 months old
+            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
             secondsInOneDay,
             secondsInOneDay,

@@ -28,14 +28,17 @@ function isPostDataValid(data: any) {
   let ok = true;
   ok = ok && gjv.valid(data);
   const features = data?.features;
-  for (const feature of features) {
-    const properties = feature.properties;
-    ok =
-      ok &&
-      properties?.timestamp != undefined &&
-      properties?.distance != undefined &&
-      properties?.object_speed != undefined &&
-      properties?.bicycle_speed != undefined;
+  ok = data?.features != undefined;
+  if (ok) {
+    for (const feature of features) {
+      const properties = feature.properties;
+      ok =
+        ok &&
+        properties?.timestamp != undefined &&
+        properties?.distance != undefined &&
+        properties?.object_speed != undefined &&
+        properties?.bicycle_speed != undefined;
+    }
   }
   return ok;
 }
