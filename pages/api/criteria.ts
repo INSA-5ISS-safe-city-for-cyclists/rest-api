@@ -42,7 +42,6 @@ async function handleGET(_req: NextApiRequest, res: NextApiResponse) {
   res.status(200).json(result);
 }
 
-// TODO retrieve new config
 async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
   const { body, headers } = req;
   if (headers.authorization === key) {

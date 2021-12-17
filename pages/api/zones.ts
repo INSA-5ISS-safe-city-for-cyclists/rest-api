@@ -99,7 +99,7 @@ function getMinMaxTimestampData(): MinMaxTimestampData {
 
   // Testing
   // TODO Remove this line used to test
-  now.setHours(9);
+  // now.setHours(9);
 
   // Current time of day (in seconds)
   const timeOfDay = Math.round(now.getTime() / 1000) % secondsInOneDay;
@@ -157,7 +157,6 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-// TODO convert into zones
 async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
   let result: string;

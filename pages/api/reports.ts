@@ -92,8 +92,7 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
         await mysql.query(
           'INSERT INTO reports (timestamp, distance, object_speed, bicycle_speed, latitude, longitude, dangerous) VALUES(?, ?, ?, ?, ?, ?, ?)',
           [
-            // TODO check timestamp format (seconds)
-            properties.timestamp / 1000,
+            properties.timestamp,
             properties.distance,
             properties.object_speed,
             properties.bicycle_speed,
