@@ -7,10 +7,27 @@ import * as dbscan from '@turf/clusters-dbscan';
 import * as turf from '@turf/helpers';
 import * as centroid from '@turf/centroid';
 import { FeatureCollection, Point } from '@turf/helpers';
+import { Feature } from 'geojson';
 
 //TODO calibrate
-const dbscanMaxDistance = 0.04;
+const dbscanMaxDistance = 0.018;
 const dbscanMinPoints = 2;
+
+const minPoints = 1;
+const radius = 0.0002565 / 2;
+
+function getDistance(report1: Feature<Point>, report2: Feature<Point>): number {
+  return Math.sqrt(
+    Math.pow(
+      report2.geometry.coordinates[1] - report1.geometry.coordinates[1],
+      2
+    ) +
+      Math.pow(
+        report2.geometry.coordinates[0] - report1.geometry.coordinates[0],
+        2
+      )
+  );
+}
 
 // Generate the timestamp of the date 3 months ago (by default)
 const nMonthsAgoDate = new Date();
@@ -46,6 +63,56 @@ function databaseToGeojson(result: string) {
   };
 }
 
+function simpleCluster(result: string) {
+  const zones = turf.featureCollection([]);
+  const rawFeatures = databaseToGeojson(result) as FeatureCollection<Point>;
+
+  while (rawFeatures.features.length > 0) {
+    // Center report is the first element
+    const centerReport = rawFeatures.features[0];
+
+    // Get the nearby reports that are within the given radius
+    const nearbyReports = rawFeatures.features.filter(
+      (report) => getDistance(report, centerReport) < radius
+    );
+
+    // Remove the reports that were found within the given radius
+    nearbyReports.forEach((value) => {
+      const index = rawFeatures.features.indexOf(value);
+      rawFeatures.features.splice(index, 1);
+    });
+
+    // Ignore small zones (egs: single reports)
+    if (nearbyReports.length < minPoints) {
+      continue;
+    }
+    const centerZone = turf.feature(
+      turf.geometry('Point', centerReport.geometry.coordinates)
+    );
+
+    // Magnitude = number of reports
+    centerZone.properties.mag = nearbyReports.length;
+
+    let recentness = 0;
+    nearbyReports.forEach((feature) => {
+      recentness += feature.properties.timestamp;
+    });
+    // Average timestamp of the reports in the cluster
+    recentness = recentness / nearbyReports.length;
+
+    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
+    const nowTimestamp = Math.round(new Date().getTime() / 1000);
+    recentness =
+      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
+
+    centerZone.properties.recentness = recentness;
+
+    zones.features.push(centerZone);
+    console.log(centerZone);
+  }
+  return zones;
+}
+
 function turfCluster(result: string) {
   // Clusterise using DBSCAN
   const clustered = dbscan.default(
@@ -56,7 +123,6 @@ function turfCluster(result: string) {
     }
   );
   const clusters = new Map<number, FeatureCollection<Point>>();
-  console.log(clustered.features);
   // Retrieve the clusters
   for (const feature of clustered.features) {
     // Ignore noise
@@ -95,8 +161,8 @@ function turfCluster(result: string) {
 }
 
 function generateGeoJson(result: string) {
-  // return simpleCluster(result);
-  return turfCluster(result);
+  return simpleCluster(result);
+  // return turfCluster(result);
 }
 
 interface MinMaxTimestampData {
