@@ -20,3 +20,9 @@ export type DatabaseData = {
   latitude: number;
   longitude: number;
 };
+
+export interface MinMaxTimestampData {
+  min: number;
+  max: number;
+  operator: 'AND' | 'OR';
+}

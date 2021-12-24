@@ -4,13 +4,12 @@ import gjv from 'geojson-validation';
 import monthsOld from '../../constants/monthsOld';
 import reportTimeHourRange from '../../constants/reportTimeHourRange';
 import * as dbscan from '@turf/clusters-dbscan';
-import * as turf from '@turf/turf';
 import * as turfHelpers from '@turf/helpers';
 import * as centroid from '@turf/centroid';
 import { FeatureCollection, Point } from '@turf/helpers';
 import { Feature } from 'geojson';
+import { MinMaxTimestampData } from '../../types/api';
 
-//TODO calibrate
 const dbscanMaxDistance = 0.018;
 const dbscanMinPoints = 2;
 
@@ -22,9 +21,7 @@ const nMonthsAgoDate = new Date();
 nMonthsAgoDate.setMonth(nMonthsAgoDate.getMonth() - monthsOld);
 const nMonthsAgoTimestamp = Math.round(nMonthsAgoDate.getTime() / 1000);
 
-function isGetResponseDataValid(geoJson: object) {
-  return gjv.valid(geoJson);
-}
+const secondsInOneDay = 86400;
 
 function databaseToGeojson(result: string) {
   const features = [];
@@ -51,6 +48,25 @@ function databaseToGeojson(result: string) {
   };
 }
 
+function getDistance(report1: Feature<Point>, report2: Feature<Point>): number {
+  return Math.sqrt(
+    Math.pow(
+      report2.geometry.coordinates[1] - report1.geometry.coordinates[1],
+      2
+    ) +
+      Math.pow(
+        report2.geometry.coordinates[0] - report1.geometry.coordinates[0],
+        2
+      )
+  );
+}
+
+// % operator can return negative values => we want the real modulo : positive
+function positiveMod(i1: number, i2: number): number {
+  const rem = i1 % i2;
+  return rem >= 0 ? rem : i2 + rem;
+}
+
 function getOptimalCenterReport(
   featureCollection: FeatureCollection<Point>
 ): Feature<Point> {
@@ -59,18 +75,20 @@ function getOptimalCenterReport(
   }
 
   let optimalCenterReport = featureCollection.features[0];
-  let maxPointsWithinRadius = turf.pointsWithinPolygon(
-    featureCollection,
-    turf.buffer(optimalCenterReport, radius, { units: 'degrees' })
-  ).features.length;
+  let maxPointsWithinRadius = 0;
 
-  for (const report of featureCollection.features) {
-    const nbPointsWithinRadius = turf.pointsWithinPolygon(
-      featureCollection,
-      turf.buffer(report, radius, { units: 'degrees' })
-    ).features.length;
+  for (const centerReport of featureCollection.features) {
+    // const nbPointsWithinRadius = turf.pointsWithinPolygon(
+    //   featureCollection,
+    //   turf.buffer(report, radius, { units: 'degrees' })
+    // ).features.length;
+    // Get the nearby reports that are within the given radius
+    const nbPointsWithinRadius = featureCollection.features.filter(
+      (report) => getDistance(report, centerReport) < radius
+    ).length;
+
     if (nbPointsWithinRadius > maxPointsWithinRadius) {
-      optimalCenterReport = report;
+      optimalCenterReport = centerReport;
       maxPointsWithinRadius = nbPointsWithinRadius;
     }
   }
@@ -78,73 +96,73 @@ function getOptimalCenterReport(
   return optimalCenterReport;
 }
 
-function processCenterZone(
-  centerZone: Feature,
-  featureCollection: FeatureCollection
-) {
-  // Magnitude = number of reports
-  centerZone.properties.mag = featureCollection.features.length;
+function simpleCluster(result: string, optimizeCenterReport = false) {
+  const label =
+    'Simple cluster ' + (optimizeCenterReport ? 'optimized' : 'not optimized');
+  console.time(label);
 
-  let recentness = 0;
-  featureCollection.features.forEach((feature) => {
-    recentness += feature.properties.timestamp;
-  });
-  // Average timestamp of the reports in the cluster
-  recentness = recentness / featureCollection.features.length;
-
-  // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
-  const nowTimestamp = Math.round(new Date().getTime() / 1000);
-  recentness =
-    1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
-
-  centerZone.properties.recentness = recentness;
-}
-
-function simpleCluster(result: string) {
-  const start = Date.now();
   const zones = turfHelpers.featureCollection([]);
   const rawFeatures = databaseToGeojson(result) as FeatureCollection<Point>;
 
   while (rawFeatures.features.length > 0) {
-    // // Center report is the first element
-    // const centerReport = rawFeatures.features[0];
+    const centerReport = optimizeCenterReport
+      ? // Get the optimal center report (max points within radius)
+        getOptimalCenterReport(rawFeatures)
+      : // // Center report is the first element
+        rawFeatures.features[0];
 
-    // Get the optimal center report (max points within radius)
-    const centerReport = getOptimalCenterReport(rawFeatures);
+    // const nearbyReports = turf.pointsWithinPolygon(
+    //   rawFeatures,
+    //   turf.buffer(centerReport, radius, { units: 'degrees' })
+    // );
 
-    const nearbyReports = turf.pointsWithinPolygon(
-      rawFeatures,
-      turf.buffer(centerReport, radius, { units: 'degrees' })
+    const nearbyReports = rawFeatures.features.filter(
+      (report) => getDistance(report, centerReport) < radius
     );
 
     // console.log('Using Buffer');
     // nearbyReports.features.forEach((value) => console.log(value));
 
     // Remove the reports that were found within the given radius
-    nearbyReports.features.forEach((value) => {
+    nearbyReports.forEach((value) => {
       const index = rawFeatures.features.indexOf(value);
       rawFeatures.features.splice(index, 1);
     });
 
     // Ignore small zones (egs: single reports)
-    if (nearbyReports.features.length < minPoints) {
+    if (nearbyReports.length < minPoints) {
       continue;
     }
     const centerZone = turfHelpers.feature(
       turfHelpers.geometry('Point', centerReport.geometry.coordinates)
     );
 
-    processCenterZone(centerZone, nearbyReports);
+    // Magnitude = number of reports
+    centerZone.properties.mag = nearbyReports.length;
+
+    let recentness = 0;
+    nearbyReports.forEach((feature) => {
+      recentness += feature.properties.timestamp;
+    });
+    // Average timestamp of the reports in the cluster
+    recentness = recentness / nearbyReports.length;
+
+    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
+    const nowTimestamp = Math.round(new Date().getTime() / 1000);
+    recentness =
+      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
+
+    centerZone.properties.recentness = recentness;
 
     zones.features.push(centerZone);
   }
-  const end = Date.now();
-  console.log('Elapsed time: ' + (end - start) + ' ms');
+  console.timeEnd(label);
   return zones;
 }
 
 function turfCluster(result: string) {
-  const start = Date.now();
+  const label = 'Turf cluster';
+  console.time(label);
   // Clusterise using DBSCAN
   const clustered = dbscan.default(
     databaseToGeojson(result) as FeatureCollection<Point>,
@@ -173,33 +191,30 @@ function turfCluster(result: string) {
   clusters.forEach((featureCollection) => {
     const myCentroid = centroid.default(featureCollection);
 
-    processCenterZone(myCentroid, featureCollection);
+    // Magnitude = number of reports
+    myCentroid.properties.mag = featureCollection.features.length;
+
+    let recentness = 0;
+    featureCollection.features.forEach((feature) => {
+      recentness += feature.properties.timestamp;
+    });
+    // Average timestamp of the reports in the cluster
+    recentness = recentness / featureCollection.features.length;
+
+    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
+    const nowTimestamp = Math.round(new Date().getTime() / 1000);
+    recentness =
+      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
+
+    myCentroid.properties.recentness = recentness;
 
     zones.features.push(myCentroid);
   });
-  const end = Date.now();
-  console.log('Elapsed time: ' + (end - start) + ' ms');
+  console.timeEnd(label);
   return zones;
 }
 
-function generateGeoJson(result: string) {
-  return simpleCluster(result);
-  // return turfCluster(result);
-}
-
-interface MinMaxTimestampData {
-  min: number;
-  max: number;
-  operator: 'AND' | 'OR';
-}
-
-// % operator can return negative values => we want the real modulo : positive
-function positiveMod(i1: number, i2: number): number {
-  const rem = i1 % i2;
-  return rem >= 0 ? rem : i2 + rem;
-}
-
-const secondsInOneDay = 86400;
+// Generate zones according to current time (+/- 1h) and day
 
 function getMinMaxTimestampData(): MinMaxTimestampData {
   const now = new Date();
@@ -263,6 +278,15 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       res.status(405).end(`Method ${method} Not Allowed`);
   }
 };
+
+function isGetResponseDataValid(geoJson: object) {
+  return gjv.valid(geoJson);
+}
+
+function generateGeoJson(result: string) {
+  return simpleCluster(result, true);
+  // return turfCluster(result);
+}
 
 async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
