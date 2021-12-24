@@ -8,6 +8,7 @@ import * as turf from '@turf/turf';
 import * as turfHelpers from '@turf/helpers';
 import * as centroid from '@turf/centroid';
 import { FeatureCollection, Point } from '@turf/helpers';
+import { Feature } from 'geojson';
 
 //TODO calibrate
 const dbscanMaxDistance = 0.018;
@@ -50,14 +51,66 @@ function databaseToGeojson(result: string) {
   };
 }
 
+function getOptimalCenterReport(
+  featureCollection: FeatureCollection<Point>
+): Feature<Point> {
+  if (featureCollection.features.length === 0) {
+    return null;
+  }
+
+  let optimalCenterReport = featureCollection.features[0];
+  let maxPointsWithinRadius = turf.pointsWithinPolygon(
+    featureCollection,
+    turf.buffer(optimalCenterReport, radius, { units: 'degrees' })
+  ).features.length;
+
+  for (const report of featureCollection.features) {
+    const nbPointsWithinRadius = turf.pointsWithinPolygon(
+      featureCollection,
+      turf.buffer(report, radius, { units: 'degrees' })
+    ).features.length;
+    if (nbPointsWithinRadius > maxPointsWithinRadius) {
+      optimalCenterReport = report;
+      maxPointsWithinRadius = nbPointsWithinRadius;
+    }
+  }
+
+  return optimalCenterReport;
+}
+
+function processCenterZone(
+  centerZone: Feature,
+  featureCollection: FeatureCollection
+) {
+  // Magnitude = number of reports
+  centerZone.properties.mag = featureCollection.features.length;
+
+  let recentness = 0;
+  featureCollection.features.forEach((feature) => {
+    recentness += feature.properties.timestamp;
+  });
+  // Average timestamp of the reports in the cluster
+  recentness = recentness / featureCollection.features.length;
+
+  // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
+  const nowTimestamp = Math.round(new Date().getTime() / 1000);
+  recentness =
+    1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
+
+  centerZone.properties.recentness = recentness;
+}
+
 function simpleCluster(result: string) {
   const start = Date.now();
   const zones = turfHelpers.featureCollection([]);
   const rawFeatures = databaseToGeojson(result) as FeatureCollection<Point>;
 
   while (rawFeatures.features.length > 0) {
-    // Center report is the first element
-    const centerReport = rawFeatures.features[0];
+    // // Center report is the first element
+    // const centerReport = rawFeatures.features[0];
+
+    // Get the optimal center report (max points within radius)
+    const centerReport = getOptimalCenterReport(rawFeatures);
 
     const nearbyReports = turf.pointsWithinPolygon(
       rawFeatures,
@@ -81,22 +134,7 @@ function simpleCluster(result: string) {
       turfHelpers.geometry('Point', centerReport.geometry.coordinates)
     );
 
-    // Magnitude = number of reports
-    centerZone.properties.mag = nearbyReports.features.length;
-
-    let recentness = 0;
-    nearbyReports.features.forEach((feature) => {
-      recentness += feature.properties.timestamp;
-    });
-    // Average timestamp of the reports in the cluster
-    recentness = recentness / nearbyReports.features.length;
-
-    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
-    const nowTimestamp = Math.round(new Date().getTime() / 1000);
-    recentness =
-      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
-
-    centerZone.properties.recentness = recentness;
+    processCenterZone(centerZone, nearbyReports);
 
     zones.features.push(centerZone);
   }
@@ -135,21 +173,7 @@ function turfCluster(result: string) {
   clusters.forEach((featureCollection) => {
     const myCentroid = centroid.default(featureCollection);
 
-    // Magnitude = number of reports
-    myCentroid.properties.mag = featureCollection.features.length;
-
-    let recentness = 0;
-    featureCollection.features.forEach((feature) => {
-      recentness += feature.properties.timestamp;
-    });
-    // Average timestamp of the reports in the cluster
-    recentness = recentness / featureCollection.features.length;
-
-    // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
-    const nowTimestamp = Math.round(new Date().getTime() / 1000);
-    recentness =
-      1 - (nowTimestamp - recentness) / (nowTimestamp - nMonthsAgoTimestamp);
-    myCentroid.properties.recentness = recentness;
+    processCenterZone(myCentroid, featureCollection);
 
     zones.features.push(myCentroid);
   });
