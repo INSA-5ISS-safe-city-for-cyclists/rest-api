@@ -4,10 +4,10 @@ import gjv from 'geojson-validation';
 import monthsOld from '../../constants/monthsOld';
 import reportTimeHourRange from '../../constants/reportTimeHourRange';
 import * as dbscan from '@turf/clusters-dbscan';
-import * as turf from '@turf/helpers';
+import * as turf from '@turf/turf';
+import * as turfHelpers from '@turf/helpers';
 import * as centroid from '@turf/centroid';
 import { FeatureCollection, Point } from '@turf/helpers';
-import { Feature } from 'geojson';
 
 //TODO calibrate
 const dbscanMaxDistance = 0.018;
@@ -15,19 +15,6 @@ const dbscanMinPoints = 2;
 
 const minPoints = 1;
 const radius = 0.0002565 / 2;
-
-function getDistance(report1: Feature<Point>, report2: Feature<Point>): number {
-  return Math.sqrt(
-    Math.pow(
-      report2.geometry.coordinates[1] - report1.geometry.coordinates[1],
-      2
-    ) +
-      Math.pow(
-        report2.geometry.coordinates[0] - report1.geometry.coordinates[0],
-        2
-      )
-  );
-}
 
 // Generate the timestamp of the date 3 months ago (by default)
 const nMonthsAgoDate = new Date();
@@ -64,41 +51,45 @@ function databaseToGeojson(result: string) {
 }
 
 function simpleCluster(result: string) {
-  const zones = turf.featureCollection([]);
+  const start = Date.now();
+  const zones = turfHelpers.featureCollection([]);
   const rawFeatures = databaseToGeojson(result) as FeatureCollection<Point>;
 
   while (rawFeatures.features.length > 0) {
     // Center report is the first element
     const centerReport = rawFeatures.features[0];
 
-    // Get the nearby reports that are within the given radius
-    const nearbyReports = rawFeatures.features.filter(
-      (report) => getDistance(report, centerReport) < radius
+    const nearbyReports = turf.pointsWithinPolygon(
+      rawFeatures,
+      turf.buffer(centerReport, radius, { units: 'degrees' })
     );
 
+    // console.log('Using Buffer');
+    // nearbyReports.features.forEach((value) => console.log(value));
+
     // Remove the reports that were found within the given radius
-    nearbyReports.forEach((value) => {
+    nearbyReports.features.forEach((value) => {
       const index = rawFeatures.features.indexOf(value);
       rawFeatures.features.splice(index, 1);
     });
 
     // Ignore small zones (egs: single reports)
-    if (nearbyReports.length < minPoints) {
+    if (nearbyReports.features.length < minPoints) {
       continue;
     }
-    const centerZone = turf.feature(
-      turf.geometry('Point', centerReport.geometry.coordinates)
+    const centerZone = turfHelpers.feature(
+      turfHelpers.geometry('Point', centerReport.geometry.coordinates)
     );
 
     // Magnitude = number of reports
-    centerZone.properties.mag = nearbyReports.length;
+    centerZone.properties.mag = nearbyReports.features.length;
 
     let recentness = 0;
-    nearbyReports.forEach((feature) => {
+    nearbyReports.features.forEach((feature) => {
       recentness += feature.properties.timestamp;
     });
     // Average timestamp of the reports in the cluster
-    recentness = recentness / nearbyReports.length;
+    recentness = recentness / nearbyReports.features.length;
 
     // Recentness between 0 and 1 according to (nowTimestamp - nMonthsAgoTimestamp)
     const nowTimestamp = Math.round(new Date().getTime() / 1000);
@@ -108,12 +99,14 @@ function simpleCluster(result: string) {
     centerZone.properties.recentness = recentness;
 
     zones.features.push(centerZone);
-    console.log(centerZone);
   }
+  const end = Date.now();
+  console.log('Elapsed time: ' + (end - start) + ' ms');
   return zones;
 }
 
 function turfCluster(result: string) {
+  const start = Date.now();
   // Clusterise using DBSCAN
   const clustered = dbscan.default(
     databaseToGeojson(result) as FeatureCollection<Point>,
@@ -128,14 +121,17 @@ function turfCluster(result: string) {
     // Ignore noise
     if (feature.properties.dbscan === 'core') {
       if (!clusters.has(feature.properties.cluster)) {
-        clusters.set(feature.properties.cluster, turf.featureCollection([]));
+        clusters.set(
+          feature.properties.cluster,
+          turfHelpers.featureCollection([])
+        );
       }
       clusters.get(feature.properties.cluster).features.push(feature);
     }
   }
 
   // Transform clusters into zones
-  const zones = turf.featureCollection([]);
+  const zones = turfHelpers.featureCollection([]);
   clusters.forEach((featureCollection) => {
     const myCentroid = centroid.default(featureCollection);
 
@@ -157,6 +153,8 @@ function turfCluster(result: string) {
 
     zones.features.push(myCentroid);
   });
+  const end = Date.now();
+  console.log('Elapsed time: ' + (end - start) + ' ms');
   return zones;
 }
 
@@ -259,7 +257,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
     switch (minMaxTimestamp.operator) {
       case 'AND':
         result = await mysql.query(
-          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
+          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
           [
             dangerous, // true or false
             nMonthsAgoTimestamp, // Use only the reports less than 3 months old
@@ -272,7 +270,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
         break;
       case 'OR':
         result = await mysql.query(
-          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
+          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
           [
             dangerous, // true or false
             nMonthsAgoTimestamp, // Use only the reports less than 3 months old
@@ -288,7 +286,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
     switch (minMaxTimestamp.operator) {
       case 'AND':
         result = await mysql.query(
-          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?)',
+          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
           [
             nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
@@ -300,7 +298,7 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
         break;
       case 'OR':
         result = await mysql.query(
-          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?)',
+          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
           [
             nMonthsAgoTimestamp, // Use only the reports less than 3 months old
             minMaxTimestamp.min,
