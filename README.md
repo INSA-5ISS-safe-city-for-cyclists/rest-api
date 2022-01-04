@@ -51,11 +51,11 @@ GRANT ALL PRIVILEGES ON safe_city_for_cyclists.* TO 'admin'@'localhost';
 CREATE table safe_city_for_cyclists.reports(
 id int NOT NULL AUTO_INCREMENT,
 timestamp int NOT NULL,
-distance float NOT NULL,
-object_speed float NOT NULL,
-bicycle_speed float NOT NULL,
-latitude float NOT NULL,
-longitude float NOT NULL,
+distance double NOT NULL,
+object_speed double NOT NULL,
+bicycle_speed double NOT NULL,
+latitude double NOT NULL,
+longitude double NOT NULL,
 dangerous bool NOT NULL,
 PRIMARY KEY (id)
 );
