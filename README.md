@@ -82,7 +82,11 @@ Configure the criteria in [constants/criteria.ts](types/criteria.ts)
 
 ## API
 - [http://localhost:3000/api/reports/geojson](http://localhost:3000/api/reports/geojson)
-  - GET : retrieve all the reports in GeoJson format (can add path parameter "dangerous" )
+  - GET : retrieve all the reports in GeoJson format, with path parameters:
+    - dangerous = 0, 1, true, or false (default: none)
+    - time_filter = 0, or false (the time filter is activated by default)
+    - hours from 0 to 24 (used when the time filter is on)
+    - minutes from 0 to 60 (used when the time filter is on)
   - DELETE : delete the given reports (an array of ids)
   - POST : add the given reports to the database (given in GeoJson format)
 
@@ -169,10 +173,6 @@ JSON format :
     "longitude": 1.457377
 }]
 ```
-
-- [http://localhost:3000/api/reports/update-all](http://localhost:3000/api/reports/update-all)
-  - GET : update all the database according to the current criteria
-
 
 - [http://localhost:3000/api/criteria](http://localhost:3000/api/criteria):
   - GET : retrieve the criteria

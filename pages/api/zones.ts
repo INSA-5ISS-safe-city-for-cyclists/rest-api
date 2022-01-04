@@ -216,15 +216,12 @@ function turfCluster(result: string) {
 
 // Generate zones according to current time (+/- 1h) and day
 
-function getMinMaxTimestampData(): MinMaxTimestampData {
-  const now = new Date();
-
-  // Testing
-  // TODO Remove this line used to test
-  // now.setHours(9);
-
+function getMinMaxTimestampData(
+  hours: number,
+  minutes: number
+): MinMaxTimestampData {
   // Current time of day (in seconds)
-  const timeOfDay = Math.round(now.getTime() / 1000) % secondsInOneDay;
+  const timeOfDay = hours * 3600 + minutes * 60;
 
   const result: MinMaxTimestampData = {
     min: 0,
@@ -292,70 +289,133 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   const { query } = req;
   let result: string;
 
-  // Get the min and max timestamp to get the reports according to current time of day (+/- 1h by default)
-  // And also the operator : when the time interval goes past midnight we have to change AND to OR
-  const minMaxTimestamp = getMinMaxTimestampData();
+  let minMaxTimestamp;
 
+  // Time filter can be deactivated
+  let timeFilter = true;
+  if (query.time_filter && ['false', '0'].includes(<string>query.time_filter)) {
+    timeFilter = false;
+    console.log('Time filter was deactivated');
+  }
+
+  if (timeFilter) {
+    let hours = new Date().getHours();
+    let minutes = new Date().getMinutes();
+
+    // Check hour query parameter
+    if (
+      query.hours &&
+      0 <= +(<string>query.hours) &&
+      +(<string>query.hours) <= 24
+    ) {
+      hours = +(<string>query.hours);
+      if (
+        query.minutes &&
+        0 <= +(<string>query.minutes) &&
+        +(<string>query.minutes) <= 60
+      ) {
+        minutes = +(<string>query.minutes);
+      } else {
+        minutes = 0;
+      }
+    }
+
+    console.log(
+      'Given Time: ' +
+        hours.toLocaleString('fr-FR', {
+          minimumIntegerDigits: 2,
+          useGrouping: false,
+        }) +
+        ':' +
+        minutes.toLocaleString('fr-FR', {
+          minimumIntegerDigits: 2,
+          useGrouping: false,
+        })
+    );
+
+    // Get the min and max timestamp to get the reports according to current time of day or given time (+/- 1h by default)
+    // And also the operator : when the time interval goes past midnight we have to change AND to OR
+    minMaxTimestamp = getMinMaxTimestampData(hours, minutes);
+  }
   // Dangerous criterion
   if (
     query.dangerous &&
     ['true', 'false', '1', '0'].includes(<string>query.dangerous)
   ) {
     const dangerous = ['true', '1'].includes(<string>query.dangerous);
-    switch (minMaxTimestamp.operator) {
-      case 'AND':
-        result = await mysql.query(
-          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
-          [
-            dangerous, // true or false
-            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
-            minMaxTimestamp.min,
-            secondsInOneDay,
-            secondsInOneDay,
-            minMaxTimestamp.max,
-          ]
-        );
-        break;
-      case 'OR':
-        result = await mysql.query(
-          'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
-          [
-            dangerous, // true or false
-            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
-            minMaxTimestamp.min,
-            secondsInOneDay,
-            secondsInOneDay,
-            minMaxTimestamp.max,
-          ]
-        );
-        break;
+    if (timeFilter) {
+      switch (minMaxTimestamp.operator) {
+        case 'AND':
+          result = await mysql.query(
+            'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
+            [
+              dangerous, // true or false
+              nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+              minMaxTimestamp.min,
+              secondsInOneDay,
+              secondsInOneDay,
+              minMaxTimestamp.max,
+            ]
+          );
+          break;
+        case 'OR':
+          result = await mysql.query(
+            'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
+            [
+              dangerous, // true or false
+              nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+              minMaxTimestamp.min,
+              secondsInOneDay,
+              secondsInOneDay,
+              minMaxTimestamp.max,
+            ]
+          );
+          break;
+      }
+    } else {
+      result = await mysql.query(
+        'SELECT * FROM reports WHERE dangerous = ? AND timestamp > ? ORDER BY id',
+        [
+          dangerous, // true or false
+          nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+        ]
+      );
     }
   } else {
-    switch (minMaxTimestamp.operator) {
-      case 'AND':
-        result = await mysql.query(
-          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
-          [
-            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
-            minMaxTimestamp.min,
-            secondsInOneDay,
-            secondsInOneDay,
-            minMaxTimestamp.max,
-          ]
-        );
-        break;
-      case 'OR':
-        result = await mysql.query(
-          'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
-          [
-            nMonthsAgoTimestamp, // Use only the reports less than 3 months old
-            minMaxTimestamp.min,
-            secondsInOneDay,
-            secondsInOneDay,
-            minMaxTimestamp.max,
-          ]
-        );
-        break;
+    if (timeFilter) {
+      switch (minMaxTimestamp.operator) {
+        case 'AND':
+          result = await mysql.query(
+            'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) AND MOD(timestamp, ?) <= ?) ORDER BY id',
+            [
+              nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+              minMaxTimestamp.min,
+              secondsInOneDay,
+              secondsInOneDay,
+              minMaxTimestamp.max,
+            ]
+          );
+          break;
+        case 'OR':
+          result = await mysql.query(
+            'SELECT * FROM reports WHERE timestamp > ? AND (? <= MOD(timestamp, ?) OR MOD(timestamp, ?) <= ?) ORDER BY id',
+            [
+              nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+              minMaxTimestamp.min,
+              secondsInOneDay,
+              secondsInOneDay,
+              minMaxTimestamp.max,
+            ]
+          );
+          break;
+      }
+    } else {
+      result = await mysql.query(
+        'SELECT * FROM reports WHERE timestamp > ? ORDER BY id',
+        [
+          nMonthsAgoTimestamp, // Use only the reports less than 3 months old
+        ]
+      );
     }
   }
   const geoJson = generateGeoJson(result);
