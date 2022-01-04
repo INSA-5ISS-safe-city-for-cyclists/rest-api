@@ -299,8 +299,11 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (timeFilter) {
-    let hours = new Date().getHours();
-    let minutes = new Date().getMinutes();
+    const now = positiveMod(Date.now() / 1000, secondsInOneDay); // Current minutes in day
+    let hours = Math.floor(now / 3600);
+    let minutes = Math.floor((now - 3600 * hours) / 60);
+    // let hours = new Date().getHours();
+    // let minutes = new Date().getMinutes();
 
     // Check hour query parameter
     if (
@@ -383,6 +386,8 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
     }
   } else {
     if (timeFilter) {
+      console.log(secondsInOneDay);
+      console.log(minMaxTimestamp);
       switch (minMaxTimestamp.operator) {
         case 'AND':
           result = await mysql.query(
