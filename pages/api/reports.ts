@@ -28,7 +28,7 @@ function isPostDataValid(data: any) {
   let ok = true;
   ok = ok && gjv.valid(data);
   const features = data?.features;
-  ok = data?.features != undefined;
+  ok = ok && data?.features != undefined;
   if (ok) {
     for (const feature of features) {
       const properties = feature.properties;
@@ -57,7 +57,7 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
       await handlePOST(req, res);
       break;
     case 'DELETE':
-      await handleDelete(req, res);
+      await handleDELETE(req, res);
       break;
     default:
       res.setHeader('Allow', ['POST']);
@@ -114,7 +114,7 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
   }
 }
 
-async function handleDelete(req: NextApiRequest, res: NextApiResponse) {
+async function handleDELETE(req: NextApiRequest, res: NextApiResponse) {
   const { body } = req;
   if (isDeleteDataValid(body)) {
     body.forEach((id) => {
