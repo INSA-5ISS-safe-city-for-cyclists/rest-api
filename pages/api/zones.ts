@@ -299,13 +299,11 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (timeFilter) {
-    const now = positiveMod(Date.now() / 1000, secondsInOneDay); // Current minutes in day
-    let hours = Math.floor(now / 3600);
-    let minutes = Math.floor((now - 3600 * hours) / 60);
-    // let hours = new Date().getHours();
-    // let minutes = new Date().getMinutes();
+    const now = new Date();
+    let hours = Math.floor(now.getHours());
+    let minutes = Math.floor(now.getMinutes());
 
-    // Check hour query parameter
+    // Check hour query parameter (we assume given time is UTC+01:00)
     if (
       query.hours &&
       0 <= +(<string>query.hours) &&
@@ -322,19 +320,20 @@ async function handleGET(req: NextApiRequest, res: NextApiResponse) {
         minutes = 0;
       }
     }
-
     console.log(
       'Given Time: ' +
-        hours.toLocaleString('fr-FR', {
+        hours.toLocaleString('fr', {
           minimumIntegerDigits: 2,
           useGrouping: false,
         }) +
         ':' +
-        minutes.toLocaleString('fr-FR', {
+        minutes.toLocaleString('fr', {
           minimumIntegerDigits: 2,
           useGrouping: false,
         })
     );
+    // From UTC+01:00 to UTC
+    hours -= 1;
 
     // Get the min and max timestamp to get the reports according to current time of day or given time (+/- 1h by default)
     // And also the operator : when the time interval goes past midnight we have to change AND to OR
