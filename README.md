@@ -77,20 +77,38 @@ INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance', 100.0);
 
 NB: configure the correct port in [constants/db.ts](constants/db.ts)
 
+## Recentness configuration
+Configure the recentness of the zones in [constants/monthsOld.ts](constants/monthsOld.ts)
+
+## Time filter configuration
+Configure the hour range of the zones in [constants/reportTimeHourRange.ts](constants/reportTimeHourRange.ts)  
+- for instance, when set it to 1, we take in account only the report that were done +/- 1h from current hour of day
+
 ## Criteria configuration
-Configure the criteria in [constants/criteria.ts](types/criteria.ts)
+Configure the default criteria value in [constants/criteria.ts](types/criteria.ts)
 
 ## API
-- [http://localhost:3000/api/reports/geojson](http://localhost:3000/api/reports/geojson)
-  - GET : retrieve all the reports in GeoJson format, with path parameters:
-    - dangerous = 0, 1, true, or false (default: none)
-    - time_filter = 0, or false (the time filter is activated by default)
-    - hours from 0 to 24 (used when the time filter is on)
-    - minutes from 0 to 60 (used when the time filter is on)
-  - DELETE : delete the given reports (an array of ids)
+- [http://localhost:3000/api/reports](http://localhost:3000/api/reports)
   - POST : add the given reports to the database (given in GeoJson format)
+  - DELETE : delete the given reports from the database (by ids)
 
-GeoJson format : 
+- [http://localhost:3000/api/zones](http://localhost:3000/api/zones):
+  - GET : retrieve the zones according to the following rules :
+    - For all requests, we take in account the recentness parameter  
+    - By default, all the zones using the time filter
+    - Query parameters :
+      - dangerous = 0, 1, true, or false (default: none)
+      - time_filter = 0, or false (the time filter is activated by default)
+      - hours from 0 to 24 (specifies time of day when the time filter is on)
+      - minutes from 0 to 60 (specifies time of day when the time filter is on)
+
+- [http://localhost:3000/api/criteria](http://localhost:3000/api/criteria):
+  - GET : retrieve the criteria
+  - POST : update the criteria (if the given authorization key is correct)
+
+## JSON and GeoJSON format for POST requests
+
+GeoJSON format used for reports:
 ```json5
 {
     features: [
@@ -138,45 +156,7 @@ GeoJson format :
   }
 ```
 
-- [http://localhost:3000/api/reports](http://localhost:3000/api/reports)
-  - Same as /reports/geojson but the format for GET and POST is different:
-
-JSON format :
-```json5
-[{
-    "timestamp": 1635497504,
-    "distance": 300.0,
-    "object_speed": 60.0,
-    "bicycle_speed": 7.0,
-    "latitude": 43.57037533253987,
-    "longitude": 1.468026024931181
-},{
-    "timestamp": 1635497700,
-    "distance": 80.0,
-    "object_speed": 30.0,
-    "bicycle_speed": 5.0,
-    "latitude": 43.573154109080825,
-    "longitude": 1.4781496777222487
-},{
-    "timestamp": 1635408700,
-    "distance": 300.0,
-    "object_speed": 10.0,
-    "bicycle_speed": 4.0,
-    "latitude": 43.553550, 
-    "longitude": 1.466915
-},{
-    "timestamp": 1635448700,
-    "distance": 350.0,
-    "object_speed": 20.0,
-    "bicycle_speed": 7.0,
-    "latitude": 43.560097, 
-    "longitude": 1.457377
-}]
-```
-
-- [http://localhost:3000/api/criteria](http://localhost:3000/api/criteria):
-  - GET : retrieve the criteria
-
+JSON format used for criteria
 ```json5
 {
   // Criteria to set a report as dangerous
