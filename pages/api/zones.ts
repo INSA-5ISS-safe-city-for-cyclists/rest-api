@@ -2,7 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import gjv from 'geojson-validation';
 import monthsOld from '../../constants/monthsOld';
-import reportTimeHourRange from '../../constants/reportTimeHourRange';
+import reportTimeHourRange, {
+  secondsInOneDay,
+} from '../../constants/reportTimeHourRange';
 import * as dbscan from '@turf/clusters-dbscan';
 import * as turfHelpers from '@turf/helpers';
 import * as centroid from '@turf/centroid';
@@ -20,8 +22,6 @@ const radius = 0.0002565 / 2;
 const nMonthsAgoDate = new Date();
 nMonthsAgoDate.setMonth(nMonthsAgoDate.getMonth() - monthsOld);
 const nMonthsAgoTimestamp = Math.round(nMonthsAgoDate.getTime() / 1000);
-
-const secondsInOneDay = 86400;
 
 function databaseToGeojson(result: string) {
   const features = [];
