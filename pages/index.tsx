@@ -33,17 +33,7 @@ export default function Home() {
           Get all the information about the reports done by Safe City for
           Cyclists
         </p>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <h1>Number of reports depending on hour of day</h1>
-          <DangerGraph />
-        </div>
+        <DangerGraph />
       </main>
     </div>
   );

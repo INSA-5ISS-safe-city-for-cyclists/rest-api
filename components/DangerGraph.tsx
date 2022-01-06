@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { isMobile } from 'react-device-detect';
 import {
   XAxis,
   CartesianGrid,
@@ -8,6 +9,7 @@ import {
   Bar,
   ResponsiveContainer,
 } from 'recharts';
+import styles from '../styles/Home.module.css';
 
 type NumberOfReports = {
   name: string;
@@ -69,31 +71,38 @@ export default class DangerGraph extends Component {
 
   render() {
     const { chartData } = this.state;
+    let aspect = 4.0;
+    if (isMobile) aspect = 1.0;
     return (
-      <ResponsiveContainer width="100%" aspect={4.0 / 2.0}>
-        <BarChart data={chartData}>
-          <defs>
-            <linearGradient
-              id="gradient"
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="100%"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0" stopColor="red" />
-              <stop offset=".5" stopColor="yellow" />
-              <stop offset="1" stopColor="green" />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" minTickGap={10} />
-          <YAxis />
-          <Tooltip />
-          {/*<Legend />*/}
-          <Bar dataKey="number_of_reports" fill="url(#gradient)" />
-        </BarChart>
-      </ResponsiveContainer>
+      <>
+        <h1 className={styles.chartTitle}>
+          Number of reports depending on hour of day
+        </h1>
+        <ResponsiveContainer width="100%" aspect={aspect}>
+          <BarChart data={chartData}>
+            <defs>
+              <linearGradient
+                id="gradient"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="100%"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0" stopColor="red" />
+                <stop offset=".5" stopColor="yellow" />
+                <stop offset="1" stopColor="green" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" minTickGap={10} />
+            <YAxis />
+            <Tooltip />
+            {/*<Legend />*/}
+            <Bar dataKey="number_of_reports" fill="url(#gradient)" />
+          </BarChart>
+        </ResponsiveContainer>
+      </>
     );
   }
 }

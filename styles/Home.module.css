@@ -114,3 +114,7 @@
     flex-direction: column;
   }
 }
+
+.chartTitle {
+  text-align: center;
+}
