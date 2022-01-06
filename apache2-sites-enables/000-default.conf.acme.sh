@@ -1,65 +1,42 @@
 # Port 80 only use for LetsEncrypt 
-#<VirtualHost *:80>
-
-#	Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
-#	<Directory "/var/www/letsencrypt/.well-known/acme-challenge/">
-
-#       Options None
-
-#        AllowOverride None
-
-#        ForceType text/plain
-
-#        RedirectMatch 404 "^(?!/\.well-known/acme-challenge/[\w-]{43}$)"
-
-#	</Directory>
-
-#	RewriteEngine On
-
-#	RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge [NC]
-
-#	RewriteCond %{HTTPS} on
-
-#	RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
-#</VirtualHost>
-
 <VirtualHost *:80>
 
+	Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
+	<Directory "/var/www/letsencrypt/.well-known/acme-challenge/">
+
+       Options None
+
+        AllowOverride None
+
+        ForceType text/plain
+
+        RedirectMatch 404 "^(?!/\.well-known/acme-challenge/[\w-]{43}$)"
+
+	</Directory>
+
+	RewriteEngine On
+
+	RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge [NC]
+
+	RewriteCond %{HTTPS} on
+
+	RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+</VirtualHost>
+
+#<VirtualHost *:80>
+
         # Configuration de l'addresse
-        ServerAdmin     admin@pikouri.fr
-        ServerName      rasp.pikouri.fr
-        DocumentRoot    /usr/share/phpmyadmin/
+#        ServerAdmin     admin@pikouri.fr
+#        ServerName      rasp.pikouri.fr
+#        DocumentRoot    /usr/share/phpmyadmin/
 
         # Redirection vers HTTPS
-        RewriteEngine   on
+#        RewriteEngine   on
 #        RewriteCond     %{HTTPS} !=on
 #        RewriteRule     ^(.*)$ https://%{SERVER_NAME}$1 [L,R=301]
 
-	# Redirect HTTPS except /api/counter
-
-	RewriteCond %{HTTPS} =off
-	RewriteCond %{REQUEST_URI} !^\/api\/counter
-	RewriteRule (.*) https://%{SERVER_NAME}$1 [L,R=301]    
-
-        ProxyRequests           Off
-
-        ProxyPreserveHost       On
-
-        <Proxy *>
-
-        Order deny,allow
-
-        Allow from all
-
-        </Proxy>
-
-        # NodeJS
-        ProxyPass /  http://127.0.0.1:3000/
-
-        ProxyPassReverse / http://127.0.0.1:3000/
-
-</VirtualHost>
+#</VirtualHost>
 
 <VirtualHost *:443>
 	
@@ -130,13 +107,10 @@
         ProxyPassReverse /phpmyadmin https://127.0.0.1:80/phpmyadmin
 
 	# NodeJS
+
         ProxyPass /  http://127.0.0.1:3000/
 
         ProxyPassReverse / http://127.0.0.1:3000/
-
-
-
-
 </VirtualHost>
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
