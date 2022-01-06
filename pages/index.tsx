@@ -1,12 +1,12 @@
 import Head from 'next/head';
 import styles from '../styles/Home.module.css';
 import React from 'react';
-import dynamic from 'next/dynamic';
+import DangerGraph from '../components/DangerGraph';
 
-// components/MyChart.js contains the recharts chart
-const MyDangerGraph = dynamic(() => import('../components/DangerGraph'), {
-  ssr: false,
-});
+// // components/MyChart.js contains the recharts chart
+// const MyDangerGraph = dynamic(() => import('../components/DangerGraph'), {
+//   ssr: false,
+// });
 
 export default function Home() {
   return (
@@ -42,7 +42,7 @@ export default function Home() {
           }}
         >
           <h1>Number of reports depending on hour of day</h1>
-          <MyDangerGraph />
+          <DangerGraph />
         </div>
       </main>
     </div>
