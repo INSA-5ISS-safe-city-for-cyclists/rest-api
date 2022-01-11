@@ -30,6 +30,7 @@ export default function Home() {
                   'https://github.com/INSA-5ISS-safe-city-for-cyclists/rest-api'
                 )
               }
+              style={{ cursor: 'pointer' }}
             />
           </li>
         </ul>
