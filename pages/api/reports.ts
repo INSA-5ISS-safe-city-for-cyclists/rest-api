@@ -2,9 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../util/mysql';
 import criteria from '../../types/criteria';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const gjv = require('geojson-validation');
-
 // function isPostDataValid(data: unknown): data is POSTData {
 //   const typedData = data as POSTData;
 //   return (
@@ -26,7 +23,7 @@ const gjv = require('geojson-validation');
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function isPostDataValid(data: any) {
   let ok = true;
-  ok = ok && gjv.valid(data);
+  // ok = ok && gjv.valid(data);
   const features = data?.features;
   ok = ok && data?.features != undefined;
   if (ok) {
@@ -92,6 +89,8 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
         const properties = feature.properties;
         const latitude = feature.geometry.coordinates[1];
         const longitude = feature.geometry.coordinates[0];
+        const relative_speed =
+          properties.object_speed - properties.bicycle_speed;
         await mysql.query(
           'INSERT INTO reports (timestamp, distance, object_speed, bicycle_speed, latitude, longitude, dangerous) VALUES(?, ?, ?, ?, ?, ?, ?)',
           [
@@ -101,9 +100,10 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
             properties.bicycle_speed,
             latitude,
             longitude,
-            properties.object_speed - properties.bicycle_speed >=
-              criteria.min_speed ||
-              properties.distance <= criteria.max_distance,
+            (relative_speed >= criteria.min_speed ||
+              properties.distance <= criteria.max_distance) &&
+              relative_speed >= criteria.min_speed_threshold &&
+              properties.distance >= criteria.min_distance_threshold,
           ]
         );
       }

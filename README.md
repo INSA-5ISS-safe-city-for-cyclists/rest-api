@@ -63,7 +63,7 @@ PRIMARY KEY (id)
 - Create the table for criteria:
 ```sql
 CREATE table safe_city_for_cyclists.criteria(
-name VARCHAR(12) NOT NULL,
+name VARCHAR(30) NOT NULL,
 value float NOT NULL,
 PRIMARY KEY (name)
 );
@@ -73,6 +73,8 @@ PRIMARY KEY (name)
 ```sql
 INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed', 30.0);
 INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance', 100.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed_threshold', 5.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_distance_threshold', 50.0);
 ```
 
 NB: configure the correct port in [constants/db.ts](constants/db.ts)
@@ -120,7 +122,7 @@ GeoJSON format used for reports:
           object_speed: 3.0,
           distance: 2.0,
           sync: false,
-          timestamp: 1638733392089,
+          timestamp: 1638733392,
         },
         type: 'Feature',
       },
@@ -135,7 +137,7 @@ GeoJSON format used for reports:
           object_speed: 4.0,
           distance: 3.0,
           sync: false,
-          timestamp: 1638796649644,
+          timestamp: 1638796649,
         },
         type: 'Feature',
       },
@@ -147,7 +149,7 @@ GeoJSON format used for reports:
           object_speed: 5.0,
           distance: 4.0,
           sync: false,
-          timestamp: 1638796666485,
+          timestamp: 1638796666,
         },
         type: 'Feature',
       },
@@ -162,6 +164,8 @@ JSON format used for criteria
   // Criteria to set a report as dangerous
   minSpeed: 30.0, // When relativeSpeed=(objectSpeed-bicycleSpeed) is greater than this criteria (in km/h)
   maxDistance: 100.0, // When distance is smaller than this criteria (in cm)
+  min_speed_threshold: 5.0, // Minimal speed threshold used to remove false positive reports (in km/h)
+  min_distance_threshold: 50, // Minimal distance threshold used to remove false positive reports (in cm)
 }
 ```
 
