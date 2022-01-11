@@ -1,86 +1,163 @@
 import React, { Component } from 'react';
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
   Legend,
   ResponsiveContainer,
 } from 'recharts';
 import styles from '../styles/Home.module.css';
+import { Criteria } from '../types/criteria';
 
-const data = [
-  {
-    name: '(0, 20)',
-    dangerous: 5,
-    falsePositive: 20,
-    distance: 0,
-    speed: 20,
-  },
-  {
-    name: '(20, 0)',
-    dangerous: 10,
-    falsePositive: 0,
-    distance: 20,
-    speed: 0,
-  },
-  {
-    name: '(20, 20)',
-    dangerous: 20,
-    falsePositive: 0,
-    distance: 20,
-    speed: 20,
-  },
-];
+const micro = 1e-12;
 
-type NumberOfReports = {
+const offsetDistance = 100;
+const offsetSpeed = 20;
+
+const criteriaUrl = window.location.origin + '/api/criteria';
+
+type GraphPoint = {
   name: string;
-  number_of_reports: number;
+  Dangerous: number;
+  FalsePositive: number;
+  speed: number;
 };
-
-function generateUrl(minHour: number, maxHour: number): string {
-  return (
-    window.location.origin +
-    '/api/count_reports?dangerous=true&min_hour=' +
-    minHour +
-    '&max_hour=' +
-    maxHour
-  );
-}
 
 export default class CriteriaChart extends Component {
   state = {
     chartData: [],
+    opacity: {
+      Dangerous: 0.5,
+      FalsePositive: 0.5,
+    },
   };
+
+  handleMouseEnter = (o) => {
+    const { dataKey } = o;
+    const { opacity } = this.state;
+
+    this.setState({
+      opacity: { ...opacity, [dataKey]: 1 },
+    });
+  };
+
+  handleMouseLeave = (o) => {
+    const { dataKey } = o;
+    const { opacity } = this.state;
+    this.setState({
+      opacity: { ...opacity, [dataKey]: 0.5 },
+    });
+  };
+
+  data = [
+    {
+      name: '0',
+      Dangerous: 0,
+      FalsePositive: 200,
+      speed: 0,
+    },
+    {
+      name: '1-',
+      Dangerous: 0,
+      FalsePositive: 200,
+      speed: 5 - micro,
+    },
+    {
+      name: '1',
+      Dangerous: 100,
+      FalsePositive: 50,
+      speed: 5,
+    },
+    {
+      name: '2-',
+      Dangerous: 100,
+      FalsePositive: 50,
+      speed: 30 - micro,
+    },
+    {
+      name: '2',
+      Dangerous: 150,
+      FalsePositive: 50,
+      speed: 30,
+    },
+    {
+      name: '3',
+      Dangerous: 150,
+      FalsePositive: 50,
+      speed: 50,
+    },
+  ];
 
   componentDidMount() {
     const fetchData = async () => {
-      const data: Array<NumberOfReports> = [];
+      const data: Array<GraphPoint> = [];
       // Fetch all the data
       const promise = new Promise(async (res) => {
-        for (const hour of Array.from(Array(24).keys())) {
-          // For each hour, we fetch get the number of reports
-          const numberOfReports = +(await fetch(
-            generateUrl(hour, hour + 1)
-          ).then(async (response) => {
-            return await response.text();
-          }));
-          const name =
-            hour.toLocaleString('fr', {
-              minimumIntegerDigits: 2,
-              useGrouping: false,
-            }) + ':00';
-          data.push({
-            name: name,
-            number_of_reports: numberOfReports,
-          });
-        }
+        const criteria: Criteria = await fetch(criteriaUrl).then(
+          async (response) => {
+            return await response.json();
+          }
+        );
+
+        // Point 1
+        const point1: GraphPoint = {
+          Dangerous: 0,
+          FalsePositive: criteria.max_distance + offsetDistance,
+          name: '1',
+          speed: 0,
+        };
+
+        // Point 2-
+        const point2Min: GraphPoint = {
+          Dangerous: 0,
+          FalsePositive: criteria.max_distance + offsetDistance,
+          name: '2-',
+          speed: criteria.min_speed_threshold - micro,
+        };
+
+        // Point 2
+        const point2: GraphPoint = {
+          Dangerous: criteria.max_distance,
+          FalsePositive: criteria.min_distance_threshold,
+          name: '2',
+          speed: criteria.min_speed_threshold,
+        };
+
+        // Point 3-
+        const point3Min: GraphPoint = {
+          Dangerous: criteria.max_distance,
+          FalsePositive: criteria.min_distance_threshold,
+          name: '3-',
+          speed: criteria.min_speed - micro,
+        };
+
+        // Point 3
+        const point3: GraphPoint = {
+          Dangerous:
+            criteria.max_distance +
+            offsetDistance -
+            criteria.min_distance_threshold,
+          FalsePositive: criteria.min_distance_threshold,
+          name: '3',
+          speed: criteria.min_speed,
+        };
+
+        // Point 4
+        const point4: GraphPoint = {
+          Dangerous:
+            criteria.max_distance +
+            offsetDistance -
+            criteria.min_distance_threshold,
+          FalsePositive: criteria.min_distance_threshold,
+          name: '4',
+          speed: criteria.min_speed + offsetSpeed,
+        };
+
+        data.push(point1, point2Min, point2, point3Min, point3, point4);
+        // res(this.data);
         res(data);
-        // setTimeout(() => {
-        //   res(data);
-        // }, 1500);
       });
       const res = await promise;
 
@@ -93,12 +170,20 @@ export default class CriteriaChart extends Component {
     fetchData().then();
   }
 
+  renderLegend = (props) => {
+    const { payload } = props;
+
+    return (
+      <ul>
+        {payload.map((entry, index) => (
+          <li key={`item-${index}`}>{entry.value}</li>
+        ))}
+      </ul>
+    );
+  };
+
   render() {
-    // const { chartData } = this.state;
-    // const { chartData } = data;
-    const chartData = data;
-    // let aspect = 4.0;
-    // if (isMobile) aspect = 1.0;
+    const { chartData, opacity } = this.state;
     return (
       <>
         <h1 className={styles.chartTitle}>
@@ -106,10 +191,10 @@ export default class CriteriaChart extends Component {
           (km/h)
         </h1>
         <ResponsiveContainer width={'100%'} aspect={1} maxHeight={600}>
-          <LineChart
+          <AreaChart
             width={1}
             height={1}
-            data={data}
+            data={chartData}
             margin={{
               top: 10,
               right: 30,
@@ -125,22 +210,40 @@ export default class CriteriaChart extends Component {
                 position: 'insideBottomRight',
                 dy: 15,
               }}
+              scale="linear"
             />
             <YAxis
-              dataKey="distance"
+              scale="linear"
+              // dataKey="distance"
               label={{
                 value: 'Distance(cm)',
                 position: 'insideTopLeft',
-                dy: 15,
+                dy: 0,
+                angle: 90,
               }}
             />
-            <Tooltip labelFormatter={() => ''} />
-            <Legend />
-            <Line type="monotone" dataKey="dangerous" stroke="#8884d8" />
-            <Line type="monotone" dataKey="falsePositive" stroke="#82ca9d" />
-            <Line type="monotone" dataKey="speed" stroke="#000000" />
-            <Line type="monotone" dataKey="distance" stroke="#000000" />
-          </LineChart>
+            {/*<Tooltip labelFormatter={() => ''} />*/}
+            <Legend
+              onMouseEnter={this.handleMouseEnter}
+              onMouseLeave={this.handleMouseLeave}
+            />
+            <Area
+              type="linear"
+              dataKey="FalsePositive"
+              stackId="1"
+              stroke="#82ca9d"
+              fill="#82ca9d"
+              opacity={opacity.FalsePositive}
+            />
+            <Area
+              type="linear"
+              dataKey="Dangerous"
+              stackId="1"
+              stroke="#c42e17"
+              fill="#c42e17"
+              fillOpacity={opacity.Dangerous}
+            />
+          </AreaChart>
         </ResponsiveContainer>
       </>
     );
