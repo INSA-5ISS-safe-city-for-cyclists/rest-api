@@ -1,15 +1,39 @@
 import React, { Component } from 'react';
-import { isMobile } from 'react-device-detect';
 import {
+  LineChart,
+  Line,
   XAxis,
-  CartesianGrid,
   YAxis,
-  BarChart,
+  CartesianGrid,
   Tooltip,
-  Bar,
+  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import styles from '../styles/Home.module.css';
+
+const data = [
+  {
+    name: '(0, 20)',
+    dangerous: 5,
+    falsePositive: 20,
+    distance: 0,
+    speed: 20,
+  },
+  {
+    name: '(20, 0)',
+    dangerous: 10,
+    falsePositive: 0,
+    distance: 20,
+    speed: 0,
+  },
+  {
+    name: '(20, 20)',
+    dangerous: 20,
+    falsePositive: 0,
+    distance: 20,
+    speed: 20,
+  },
+];
 
 type NumberOfReports = {
   name: string;
@@ -26,7 +50,7 @@ function generateUrl(minHour: number, maxHour: number): string {
   );
 }
 
-export default class DangerGraph extends Component {
+export default class CriteriaChart extends Component {
   state = {
     chartData: [],
   };
@@ -70,41 +94,53 @@ export default class DangerGraph extends Component {
   }
 
   render() {
-    const { chartData } = this.state;
-    let aspect = 4.0;
-    if (isMobile) aspect = 1.0;
+    // const { chartData } = this.state;
+    // const { chartData } = data;
+    const chartData = data;
+    // let aspect = 4.0;
+    // if (isMobile) aspect = 1.0;
     return (
       <>
         <h1 className={styles.chartTitle}>
-          Number of reports depending on hour of day
+          Danger criteria chart depending on distance(cm) and relative speed
+          (km/h)
         </h1>
-        <ResponsiveContainer width="100%" aspect={aspect}>
-          <BarChart data={chartData}>
-            <defs>
-              <linearGradient
-                id="gradient"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="100%"
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop offset="0" stopColor="red" />
-                <stop offset=".5" stopColor="yellow" />
-                <stop offset="1" stopColor="green" />
-              </linearGradient>
-            </defs>
+        <ResponsiveContainer width={'100%'} aspect={1} maxHeight={600}>
+          <LineChart
+            width={1}
+            height={1}
+            data={data}
+            margin={{
+              top: 10,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" minTickGap={10} />
-            <YAxis />
-            <Tooltip />
-            {/*<Legend />*/}
-            <Bar
-              dataKey="number_of_reports"
-              name="Number of reports"
-              fill="url(#gradient)"
+            <XAxis
+              dataKey="speed"
+              label={{
+                value: 'Speed(km/h)',
+                position: 'insideBottomRight',
+                dy: 15,
+              }}
             />
-          </BarChart>
+            <YAxis
+              dataKey="distance"
+              label={{
+                value: 'Distance(cm)',
+                position: 'insideTopLeft',
+                dy: 15,
+              }}
+            />
+            <Tooltip labelFormatter={() => ''} />
+            <Legend />
+            <Line type="monotone" dataKey="dangerous" stroke="#8884d8" />
+            <Line type="monotone" dataKey="falsePositive" stroke="#82ca9d" />
+            <Line type="monotone" dataKey="speed" stroke="#000000" />
+            <Line type="monotone" dataKey="distance" stroke="#000000" />
+          </LineChart>
         </ResponsiveContainer>
       </>
     );
