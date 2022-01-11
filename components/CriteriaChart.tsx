@@ -53,45 +53,6 @@ export default class CriteriaChart extends Component {
     });
   };
 
-  data = [
-    {
-      name: '0',
-      Dangerous: 0,
-      FalsePositive: 200,
-      speed: 0,
-    },
-    {
-      name: '1-',
-      Dangerous: 0,
-      FalsePositive: 200,
-      speed: 5 - micro,
-    },
-    {
-      name: '1',
-      Dangerous: 100,
-      FalsePositive: 50,
-      speed: 5,
-    },
-    {
-      name: '2-',
-      Dangerous: 100,
-      FalsePositive: 50,
-      speed: 30 - micro,
-    },
-    {
-      name: '2',
-      Dangerous: 150,
-      FalsePositive: 50,
-      speed: 30,
-    },
-    {
-      name: '3',
-      Dangerous: 150,
-      FalsePositive: 50,
-      speed: 50,
-    },
-  ];
-
   componentDidMount() {
     const fetchData = async () => {
       const data: Array<GraphPoint> = [];
@@ -158,8 +119,10 @@ export default class CriteriaChart extends Component {
         };
 
         data.push(point1, point2Min, point2, point3Min, point3, point4);
-        // res(this.data);
         res(data);
+        // setTimeout(() => {
+        //   res(data);
+        // }, 1500);
       });
       const res = await promise;
 
@@ -171,18 +134,6 @@ export default class CriteriaChart extends Component {
     };
     fetchData().then();
   }
-
-  renderLegend = (props) => {
-    const { payload } = props;
-
-    return (
-      <ul>
-        {payload.map((entry, index) => (
-          <li key={`item-${index}`}>{entry.value}</li>
-        ))}
-      </ul>
-    );
-  };
 
   render() {
     const { chartData, opacity } = this.state;
