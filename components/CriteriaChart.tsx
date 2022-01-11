@@ -16,14 +16,16 @@ const micro = 1e-12;
 const offsetDistance = 100;
 const offsetSpeed = 20;
 
-const criteriaUrl = window.location.origin + '/api/criteria';
-
 type GraphPoint = {
   name: string;
   Dangerous: number;
   FalsePositive: number;
   speed: number;
 };
+
+function generateUrl() {
+  return window.location.origin + '/api/criteria';
+}
 
 export default class CriteriaChart extends Component {
   state = {
@@ -95,7 +97,7 @@ export default class CriteriaChart extends Component {
       const data: Array<GraphPoint> = [];
       // Fetch all the data
       const promise = new Promise(async (res) => {
-        const criteria: Criteria = await fetch(criteriaUrl).then(
+        const criteria: Criteria = await fetch(generateUrl()).then(
           async (response) => {
             return await response.json();
           }
@@ -208,7 +210,7 @@ export default class CriteriaChart extends Component {
               label={{
                 value: 'Speed(km/h)',
                 position: 'insideBottomRight',
-                dy: 15,
+                dx: -15,
               }}
               scale="linear"
             />
