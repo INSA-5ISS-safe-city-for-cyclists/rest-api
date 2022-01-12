@@ -65,10 +65,13 @@ PRIMARY KEY (name)
 
 - Create entry for criteria:
 ```sql
-INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed', 30.0);
-INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance', 100.0);
 INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed_threshold', 5.0);
 INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_distance_threshold', 50.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed_0_1', 30.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('min_speed_1_2', 80.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance_0', 100.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance_1', 350.0);
+INSERT INTO safe_city_for_cyclists.criteria VALUES ('max_distance_2', 700.0);
 ```
 
 NB: configure the correct port in [constants/db.ts](constants/db.ts)

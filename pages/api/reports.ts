@@ -89,8 +89,17 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
         const properties = feature.properties;
         const latitude = feature.geometry.coordinates[1];
         const longitude = feature.geometry.coordinates[0];
-        const relative_speed =
-          properties.object_speed - properties.bicycle_speed;
+        const relative_speed = Math.abs(
+          properties.object_speed - properties.bicycle_speed
+        );
+        const dangerous =
+          (properties.distance <= criteria.max_distance_0 ||
+            (properties.distance <= criteria.max_distance_1 &&
+              relative_speed >= criteria.min_speed_0_1) ||
+            (properties.distance <= criteria.max_distance_2 &&
+              relative_speed >= criteria.min_speed_1_2)) &&
+          relative_speed >= criteria.min_speed_threshold &&
+          properties.distance >= criteria.min_distance_threshold;
         await mysql.query(
           'INSERT INTO reports (timestamp, distance, object_speed, bicycle_speed, latitude, longitude, dangerous) VALUES(?, ?, ?, ?, ?, ?, ?)',
           [
@@ -100,10 +109,7 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
             properties.bicycle_speed,
             latitude,
             longitude,
-            (relative_speed >= criteria.min_speed ||
-              properties.distance <= criteria.max_distance) &&
-              relative_speed >= criteria.min_speed_threshold &&
-              properties.distance >= criteria.min_distance_threshold,
+            dangerous,
           ]
         );
       }
