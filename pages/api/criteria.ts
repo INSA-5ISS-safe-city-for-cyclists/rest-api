@@ -138,7 +138,7 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
       // Update the database according to the current criteria
       // Dangerous reports
       await mysql.query(
-        'UPDATE reports SET dangerous = true WHERE ((distance <= ? OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?) OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?)) AND ABS(object_speed-bicycle_speed) >= ?  AND distance >= ?)',
+        'UPDATE reports SET dangerous = true WHERE ((distance <= ? OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?) OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?)) AND ABS(object_speed) >= ? AND ABS(object_speed-bicycle_speed) >= ?  AND distance >= ?)',
         [
           criteria.max_distance_0,
           criteria.max_distance_1,
@@ -146,18 +146,20 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
           criteria.max_distance_2,
           criteria.min_speed_1_2,
           criteria.min_speed_threshold,
+          criteria.min_speed_threshold,
           criteria.min_distance_threshold,
         ]
       );
       // Not dangerous reports
       await mysql.query(
-        'UPDATE reports SET dangerous = false WHERE NOT((distance <= ? OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?) OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?)) AND ABS(object_speed-bicycle_speed) >= ?  AND distance >= ?)',
+        'UPDATE reports SET dangerous = false WHERE NOT((distance <= ? OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?) OR (distance <= ? AND ABS(object_speed-bicycle_speed) >= ?)) AND ABS(object_speed) >= ? AND ABS(object_speed-bicycle_speed) >= ?  AND distance >= ?)',
         [
           criteria.max_distance_0,
           criteria.max_distance_1,
           criteria.min_speed_0_1,
           criteria.max_distance_2,
           criteria.min_speed_1_2,
+          criteria.min_speed_threshold,
           criteria.min_speed_threshold,
           criteria.min_distance_threshold,
         ]

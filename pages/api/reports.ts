@@ -92,12 +92,14 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
         const relative_speed = Math.abs(
           properties.object_speed - properties.bicycle_speed
         );
+        const absolute_speed = Math.abs(properties.object_speed);
         const dangerous =
           (properties.distance <= criteria.max_distance_0 ||
             (properties.distance <= criteria.max_distance_1 &&
               relative_speed >= criteria.min_speed_0_1) ||
             (properties.distance <= criteria.max_distance_2 &&
               relative_speed >= criteria.min_speed_1_2)) &&
+          absolute_speed >= criteria.min_speed_threshold &&
           relative_speed >= criteria.min_speed_threshold &&
           properties.distance >= criteria.min_distance_threshold;
         await mysql.query(
