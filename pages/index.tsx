@@ -4,10 +4,10 @@ import React from 'react';
 import DangerGraph from '../components/DangerGraph';
 import CriteriaChart from '../components/CriteriaChart';
 import { FaGithub } from 'react-icons/fa';
+// import dynamic from 'next/dynamic';
 
-// // components/MyChart.js contains the recharts chart
 // const MyDangerGraph = dynamic(() => import('../components/DangerGraph'), {
-//   ssr: false,
+//   ssr: true,
 // });
 
 export default function Home() {
