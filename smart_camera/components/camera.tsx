@@ -28,38 +28,36 @@ export default function Camera(props: Props) {
           <div>Last temperature = {camera.temperature} Celsius</div>
           <div>Timestamp = {camera.timestamp}</div>
         </Typography>
-        <Typography>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: '25px',
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: '25px',
+          }}
+        >
+          <Button
+            size={'small'}
+            disabled={camera.counter == 0}
+            onClick={() => {
+              fetch(Url.server_url + '/cameras/' + camera.id + '/counter', {
+                method: 'DELETE',
+              })
+                .then((res) => {
+                  if (res.ok) {
+                    alert('Reset counter');
+                  } else {
+                    alert('Could not reset counter:\nStatus ' + res.status);
+                  }
+                })
+                .catch(() => {
+                  alert('Could not reset counter:\nCould not reach host');
+                });
             }}
           >
-            <Button
-              size={'small'}
-              disabled={camera.counter == 0}
-              onClick={() => {
-                fetch(Url.server_url + '/cameras/' + camera.id + '/counter', {
-                  method: 'DELETE',
-                })
-                  .then((res) => {
-                    if (res.ok) {
-                      alert('Reset counter');
-                    } else {
-                      alert('Could not reset counter:\nStatus ' + res.status);
-                    }
-                  })
-                  .catch(() => {
-                    alert('Could not reset counter:\nCould not reach host');
-                  });
-              }}
-            >
-              Reset counter
-            </Button>
-          </div>
-        </Typography>
+            Reset counter
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
