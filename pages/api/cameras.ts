@@ -5,7 +5,7 @@ import mysql from '../../util/mysql';
 import NextCors from 'nextjs-cors';
 
 export type Camera = {
-  id: number;
+  id?: number;
   timestamp: string;
   counter: number;
   temperature: number;
@@ -51,10 +51,17 @@ async function handleGET(_req: NextApiRequest, res: NextApiResponse) {
 async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
   const { body } = req;
   if (isPostDataValid(body)) {
-    await mysql.query(
-      'INSERT INTO cameras (counter, timestamp, temperature) VALUES(?, ?, ?)',
-      [body.counter, body.timestamp, body.temperature]
-    );
+    if (body.id != undefined) {
+      await mysql.query(
+        'INSERT INTO cameras (id, counter, timestamp, temperature) VALUES(?, ?, ?, ?)',
+        [body.id, body.counter, body.timestamp, body.temperature]
+      );
+    } else {
+      await mysql.query(
+        'INSERT INTO cameras (counter, timestamp, temperature) VALUES(?, ?, ?)',
+        [body.counter, body.timestamp, body.temperature]
+      );
+    }
     res.status(200).end('success');
   } else {
     res.status(400).end('Data provided invalid');

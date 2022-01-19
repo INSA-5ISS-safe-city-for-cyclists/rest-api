@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 import { NextApiRequest, NextApiResponse } from 'next';
 import mysql from '../../../../util/mysql';
 import NextCors from 'nextjs-cors';

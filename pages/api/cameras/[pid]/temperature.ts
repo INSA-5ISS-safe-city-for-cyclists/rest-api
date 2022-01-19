@@ -59,10 +59,11 @@ async function handlePOST(req: NextApiRequest, res: NextApiResponse) {
     res.status(400).end('No data provided');
   } else {
     if (isPostDataValid(body)) {
-      await mysql.query('UPDATE cameras SET temperature = ? WHERE id = ?', [
-        body,
-        pid,
-      ]);
+      const now = new Date().toLocaleString();
+      await mysql.query(
+        'UPDATE cameras SET temperature = ?, timestamp = ? WHERE id = ?',
+        [body, now, pid]
+      );
       res.status(200).end('success');
     } else {
       res.status(400).end('Data provided invalid');
