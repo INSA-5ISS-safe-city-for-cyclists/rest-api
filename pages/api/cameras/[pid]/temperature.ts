@@ -9,7 +9,7 @@ type Temperature = {
 };
 
 function isPostDataValid(data: unknown): data is number {
-  return data != null;
+  return typeof data === 'number';
 }
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
